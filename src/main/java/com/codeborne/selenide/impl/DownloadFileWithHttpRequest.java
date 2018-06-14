@@ -33,20 +33,22 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.cert.X509Certificate;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import static com.codeborne.selenide.Selenide.getUserAgent;
 import static com.codeborne.selenide.impl.Describe.describe;
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 import static org.apache.http.client.protocol.HttpClientContext.COOKIE_STORE;
 
 public class DownloadFileWithHttpRequest {
   private static final Logger log = Logger.getLogger(DownloadFileWithHttpRequest.class.getName());
-  
+
   public static boolean ignoreSelfSignedCerts = true;
-  
+
+  private HttpHelper httpHelper = new HttpHelper();
+
   public File download(WebElement element) throws IOException {
     String fileToDownloadLocation = element.getAttribute("href");
     if (fileToDownloadLocation == null || fileToDownloadLocation.trim().isEmpty()) {
@@ -70,9 +72,14 @@ public class DownloadFileWithHttpRequest {
   }
 
   protected HttpResponse executeHttpRequest(String fileToDownloadLocation) throws IOException {
-    CloseableHttpClient httpClient = ignoreSelfSignedCerts ? createTrustingHttpClient() : HttpClients.createDefault();
+    CloseableHttpClient httpClient = ignoreSelfSignedCerts ? createTrustingHttpClient() : createDefaultHttpClient();
     HttpGet httpGet = new HttpGet(fileToDownloadLocation);
+    configureHttpGet(httpGet);
+    addHttpHeaders(httpGet);
+    return httpClient.execute(httpGet, createHttpContext());
+  }
 
+  protected void configureHttpGet(HttpGet httpGet) {
     httpGet.setConfig(RequestConfig.custom()
         .setConnectTimeout((int) Configuration.timeout)
         .setSocketTimeout((int) Configuration.timeout)
@@ -83,11 +90,10 @@ public class DownloadFileWithHttpRequest {
         .setCookieSpec(CookieSpecs.STANDARD)
         .build()
     );
-    
-    HttpContext localContext = new BasicHttpContext();
-    localContext.setAttribute(COOKIE_STORE, mimicCookieState());
+  }
 
-    return httpClient.execute(httpGet, localContext);
+  protected CloseableHttpClient createDefaultHttpClient() {
+    return HttpClients.createDefault();
   }
 
   private static class TrustAllStrategy implements TrustStrategy {
@@ -101,11 +107,11 @@ public class DownloadFileWithHttpRequest {
    configure HttpClient to ignore self-signed certs
    as described here: http://literatejava.com/networks/ignore-ssl-certificate-errors-apache-httpclient-4-4/
   */
-  private CloseableHttpClient createTrustingHttpClient() throws IOException {
+  protected CloseableHttpClient createTrustingHttpClient() throws IOException {
     try {
       HttpClientBuilder builder = HttpClientBuilder.create();
       SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustAllStrategy()).build();
-      builder.setSslcontext(sslContext);
+      builder.setSSLContext(sslContext);
 
       HostnameVerifier hostnameVerifier = SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER;
 
@@ -124,15 +130,25 @@ public class DownloadFileWithHttpRequest {
     }
   }
 
+  protected HttpContext createHttpContext() {
+    HttpContext localContext = new BasicHttpContext();
+    localContext.setAttribute(COOKIE_STORE, mimicCookieState());
+    return localContext;
+  }
+
+  protected void addHttpHeaders(HttpGet httpGet) {
+    httpGet.setHeader("User-Agent", getUserAgent());
+  }
+
   protected File prepareTargetFile(String fileToDownloadLocation, HttpResponse response) throws MalformedURLException {
     return new File(Configuration.reportsFolder, getFileName(fileToDownloadLocation, response));
   }
 
   protected String getFileName(String fileToDownloadLocation, HttpResponse response) throws MalformedURLException {
     for (Header header : response.getAllHeaders()) {
-      String fileName = getFileNameFromContentDisposition(header.getName(), header.getValue());
-      if (fileName != null) {
-        return fileName;
+      Optional<String> fileName = httpHelper.getFileNameFromContentDisposition(header.getName(), header.getValue());
+      if (fileName.isPresent()) {
+        return fileName.get();
       }
     }
 
@@ -141,15 +157,7 @@ public class DownloadFileWithHttpRequest {
       log.info(header.getName() + '=' + header.getValue());
     }
 
-    return new URL(fileToDownloadLocation).getFile().replaceFirst("/|\\\\", "");
-  }
-
-  protected String getFileNameFromContentDisposition(String headerName, String headerValue) {
-    if ("Content-Disposition".equalsIgnoreCase(headerName)) {
-      Matcher regex = Pattern.compile(".*filename=\"?([^\"]*)\"?.*").matcher(headerValue);
-      return regex.matches() ? regex.replaceFirst("$1") : null;
-    }
-    return null;
+    return new URL(fileToDownloadLocation).getFile().replaceFirst("[/\\\\]", "");
   }
 
   protected BasicCookieStore mimicCookieState() {

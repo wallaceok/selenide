@@ -3,7 +3,12 @@ package com.codeborne.selenide.impl;
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.proxy.SelenideProxyServer;
 import com.codeborne.selenide.webdriver.WebDriverFactory;
-import org.openqa.selenium.*;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchSessionException;
+import org.openqa.selenium.NoSuchWindowException;
+import org.openqa.selenium.Proxy;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.events.EventFiringWebDriver;
 import org.openqa.selenium.support.events.WebDriverEventListener;
@@ -18,7 +23,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import static com.codeborne.selenide.Configuration.FileDownloadMode.PROXY;
-import static com.codeborne.selenide.Configuration.*;
+import static com.codeborne.selenide.Configuration.closeBrowserTimeoutMs;
+import static com.codeborne.selenide.Configuration.holdBrowserOpen;
+import static com.codeborne.selenide.Configuration.reopenBrowserOnFail;
 import static com.codeborne.selenide.impl.Describe.describe;
 import static java.lang.Thread.currentThread;
 import static java.util.logging.Level.FINE;
@@ -102,8 +109,7 @@ public class WebDriverThreadLocalContainer implements WebDriverContainer {
     if (webDriver != null) {
       if (!reopenBrowserOnFail || isBrowserStillOpen(webDriver)) {
         return webDriver;
-      }
-      else {
+      } else {
         log.info("Webdriver has been closed meanwhile. Let's re-create it.");
         closeWebDriver();
       }
@@ -141,21 +147,16 @@ public class WebDriverThreadLocalContainer implements WebDriverContainer {
       try {
         t.join(closeBrowserTimeoutMs);
       } catch (InterruptedException e) {
-        log.log(FINE, "Failed to close webdriver in " + closeBrowserTimeoutMs + " milliseconds", e);
+        log.log(FINE, "Failed to close webdriver " + thread.getId() + " in " + closeBrowserTimeoutMs + " milliseconds", e);
       }
 
       long duration = System.currentTimeMillis() - start;
       if (duration >= closeBrowserTimeoutMs) {
-        log.severe("Failed to close webdriver in " + closeBrowserTimeoutMs + " milliseconds");
+        log.severe("Failed to close webdriver " + thread.getId() + " in " + closeBrowserTimeoutMs + " milliseconds");
+      } else {
+        log.info("Closed webdriver " + thread.getId() + " in " + duration + " ms");
       }
-      else if (duration > 200) {
-        log.info("Closed webdriver in " + duration + " ms");
-      }
-      else {
-        log.fine("Closed webdriver in " + duration + " ms");
-      }
-    }
-    else if (proxy != null && !holdBrowserOpen) {
+    } else if (proxy != null && !holdBrowserOpen) {
       log.info("Close proxy server: " + thread.getId() + " -> " + proxy);
       proxy.shutdown();
     }
@@ -175,12 +176,10 @@ public class WebDriverThreadLocalContainer implements WebDriverContainer {
       try {
         log.info("Trying to close the browser " + describe(webdriver) + " ...");
         webdriver.quit();
-      }
-      catch (UnreachableBrowserException e) {
+      } catch (UnreachableBrowserException e) {
         // It happens for Firefox. It's ok: browser is already closed.
         log.log(FINE, "Browser is unreachable", e);
-      }
-      catch (WebDriverException cannotCloseBrowser) {
+      } catch (WebDriverException cannotCloseBrowser) {
         log.severe("Cannot close browser normally: " + Cleanup.of.webdriverExceptionMessage(cannotCloseBrowser));
       }
 
@@ -227,7 +226,7 @@ public class WebDriverThreadLocalContainer implements WebDriverContainer {
     WebDriver webdriver = factory.createWebDriver(userProvidedProxy);
 
     log.info("Create webdriver in current thread " + currentThread().getId() + ": " +
-            describe(webdriver) + " -> " + webdriver);
+      describe(webdriver) + " -> " + webdriver);
 
     return markForAutoClose(addListeners(webdriver));
   }

@@ -1,5 +1,6 @@
 package com.codeborne.selenide.webdriver;
 
+import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.WebDriverProvider;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Proxy;
@@ -13,7 +14,11 @@ import java.util.logging.Logger;
 import static com.codeborne.selenide.Configuration.browserVersion;
 import static com.codeborne.selenide.Configuration.pageLoadStrategy;
 import static com.codeborne.selenide.WebDriverRunner.isPhantomjs;
-import static org.openqa.selenium.remote.CapabilityType.*;
+import static org.openqa.selenium.remote.CapabilityType.ACCEPT_SSL_CERTS;
+import static org.openqa.selenium.remote.CapabilityType.PAGE_LOAD_STRATEGY;
+import static org.openqa.selenium.remote.CapabilityType.PROXY;
+import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_ALERTS;
+import static org.openqa.selenium.remote.CapabilityType.TAKES_SCREENSHOT;
 
 abstract class AbstractDriverFactory {
 
@@ -66,7 +71,12 @@ abstract class AbstractDriverFactory {
     browserCapabilities.setCapability(ACCEPT_SSL_CERTS, true);
 
     transferCapabilitiesFromSystemProperties(browserCapabilities);
+    browserCapabilities = mergeCapabilitiesFromConfiguration(browserCapabilities);
     return browserCapabilities;
+  }
+
+  DesiredCapabilities mergeCapabilitiesFromConfiguration(DesiredCapabilities currentCapabilities) {
+    return currentCapabilities.merge(Configuration.browserCapabilities);
   }
 
   private void transferCapabilitiesFromSystemProperties(DesiredCapabilities currentBrowserCapabilities) {

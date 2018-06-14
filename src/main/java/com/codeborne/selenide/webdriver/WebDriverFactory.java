@@ -3,18 +3,24 @@ package com.codeborne.selenide.webdriver;
 import com.codeborne.selenide.Selenide;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.HasCapabilities;
+import org.openqa.selenium.Point;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.internal.BuildInfo;
-import org.openqa.selenium.remote.RemoteWebDriver;
 
-import java.awt.*;
+import java.awt.Toolkit;
 import java.util.List;
 import java.util.logging.Logger;
 
-import static com.codeborne.selenide.Configuration.*;
+import static com.codeborne.selenide.Configuration.browser;
+import static com.codeborne.selenide.Configuration.browserPosition;
+import static com.codeborne.selenide.Configuration.browserSize;
+import static com.codeborne.selenide.Configuration.browserVersion;
+import static com.codeborne.selenide.Configuration.driverManagerEnabled;
+import static com.codeborne.selenide.Configuration.remote;
+import static com.codeborne.selenide.Configuration.startMaximized;
 import static com.codeborne.selenide.WebDriverRunner.isChrome;
-import static com.codeborne.selenide.WebDriverRunner.isHeadless;
 import static com.codeborne.selenide.impl.Describe.describe;
 import static java.util.Arrays.asList;
 
@@ -25,7 +31,7 @@ public class WebDriverFactory {
   protected List<AbstractDriverFactory> factories = asList(
       new RemoteDriverFactory(),
       new ChromeDriverFactory(),
-      new MarionetteDriverFactory(),
+      new LegacyFirefoxDriverFactory(),
       new FirefoxDriverFactory(),
       new HtmlUnitDriverFactory(),
       new EdgeDriverFactory(),
@@ -56,11 +62,27 @@ public class WebDriverFactory {
         .orElseGet(() -> new DefaultDriverFactory().create(proxy));
 
     webdriver = adjustBrowserSize(webdriver);
+    webdriver = adjustBrowserPosition(webdriver);
 
     logBrowserVersion(webdriver);
     log.info("Selenide v. " + Selenide.class.getPackage().getImplementationVersion());
     logSeleniumInfo();
     return webdriver;
+  }
+
+  protected WebDriver adjustBrowserPosition(WebDriver driver) {
+    if (browserPosition != null) {
+      log.info("Set browser position to " + browserPosition);
+      String[] coordinates = browserPosition.split("x");
+      int x = Integer.parseInt(coordinates[0]);
+      int y = Integer.parseInt(coordinates[1]);
+      Point target = new Point(x, y);
+      Point current = driver.manage().window().getPosition();
+      if (!current.equals(target)) {
+        driver.manage().window().setPosition(target);
+      }
+    }
+    return driver;
   }
 
   protected WebDriver adjustBrowserSize(WebDriver driver) {
@@ -100,7 +122,7 @@ public class WebDriverFactory {
         (int) toolkit.getScreenSize().getHeight());
   }
 
-  void logSeleniumInfo() {
+  protected void logSeleniumInfo() {
     if (remote == null) {
       BuildInfo seleniumInfo = new BuildInfo();
       log.info(
@@ -109,12 +131,13 @@ public class WebDriverFactory {
     }
   }
 
-  void logBrowserVersion(WebDriver webdriver) {
-    if (!isHeadless()) {
-      Capabilities capabilities = ((RemoteWebDriver) webdriver).getCapabilities();
-      log.info(
-          "BrowserName=" + capabilities.getBrowserName() + " Version=" + capabilities.getVersion()
-              + " Platform=" + capabilities.getPlatform());
+  protected void logBrowserVersion(WebDriver webdriver) {
+    if (webdriver instanceof HasCapabilities) {
+      Capabilities capabilities = ((HasCapabilities) webdriver).getCapabilities();
+      log.info("BrowserName=" + capabilities.getBrowserName() +
+          " Version=" + capabilities.getVersion() + " Platform=" + capabilities.getPlatform());
+    } else {
+      log.info("BrowserName=" + webdriver.getClass().getName());
     }
   }
 }

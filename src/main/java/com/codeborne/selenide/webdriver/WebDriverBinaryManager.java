@@ -1,24 +1,29 @@
 package com.codeborne.selenide.webdriver;
 
-import io.github.bonigarcia.wdm.*;
+import io.github.bonigarcia.wdm.WebDriverManager;
 
-import static com.codeborne.selenide.WebDriverRunner.*;
+import static com.codeborne.selenide.WebDriverRunner.isChrome;
+import static com.codeborne.selenide.WebDriverRunner.isEdge;
+import static com.codeborne.selenide.WebDriverRunner.isFirefox;
+import static com.codeborne.selenide.WebDriverRunner.isIE;
+import static com.codeborne.selenide.WebDriverRunner.isOpera;
+import static com.codeborne.selenide.WebDriverRunner.isPhantomjs;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class WebDriverBinaryManager {
   public void setupBinaryPath() {
     if (isChrome() && !isSystemPropertySet("webdriver.chrome.driver")) {
-      ChromeDriverManager.getInstance().setup();
+      WebDriverManager.chromedriver().setup();
     } else if (isEdge() && !isSystemPropertySet("webdriver.edge.driver")) {
-      EdgeDriverManager.getInstance().setup();
+      WebDriverManager.edgedriver().setup();
     } else if (isIE() && !isSystemPropertySet("webdriver.ie.driver")) {
-      InternetExplorerDriverManager.getInstance().setup();
+      WebDriverManager.iedriver().setup();
     } else if (isOpera() && !isSystemPropertySet("webdriver.opera.driver")) {
-      OperaDriverManager.getInstance().setup();
+      WebDriverManager.operadriver().setup();
     } else if (isPhantomjs() && !isSystemPropertySet("phantomjs.binary.path")) {
-      PhantomJsDriverManager.getInstance().setup();
-    } else if (isMarionette() && !isSystemPropertySet("webdriver.gecko.driver")) {
-      FirefoxDriverManager.getInstance().setup();
+      WebDriverManager.phantomjs().setup();
+    } else if (isFirefox() && !isSystemPropertySet("webdriver.gecko.driver")) {
+      WebDriverManager.firefoxdriver().setup();
     }
   }
 

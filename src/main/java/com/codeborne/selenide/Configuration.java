@@ -1,6 +1,7 @@
 package com.codeborne.selenide;
 
 import java.util.logging.Logger;
+import org.openqa.selenium.remote.DesiredCapabilities;
 
 import static com.codeborne.selenide.Configuration.AssertionMode.STRICT;
 import static com.codeborne.selenide.Configuration.FileDownloadMode.HTTPGET;
@@ -87,7 +88,7 @@ public class Configuration {
   /**
    * Which browser to use.
    * Can be configured either programmatically or by system property "-Dselenide.browser=ie" or "-Dbrowser=ie".
-   * Supported values: "chrome", "firefox", "ie", "htmlunit", "phantomjs", "opera", "marionette"
+   * Supported values: "chrome", "firefox", "legacy_firefox", "ie", "htmlunit", "phantomjs", "opera", "safari", "edge", "jbrowser"
    * <p/>
    * Default value: "firefox"
    */
@@ -120,6 +121,14 @@ public class Configuration {
           System.getProperty("selenide.browser-size"));
 
   /**
+   * The browser window position on screen.
+   * Can be configured either programmatically or by system property "-Dselenide.browserPosition=10x10".
+   *
+   * Default value: none (browser window position will not be set explicitly)
+   */
+  public static String browserPosition = System.getProperty("selenide.browserPosition");
+
+  /**
    * The browser window is maximized when started.
    * Can be configured either programmatically or by system property "-Dselenide.startMaximized=true".
    * <p>
@@ -130,10 +139,13 @@ public class Configuration {
 
   /**
    * @deprecated this options allowed only a single switch.
-   *   Please use more generic -Dchromeoptions.args=<comma-separated list of switches> instead
+   *   Please use instead more generic -Dchromeoptions.args=<comma-separated list of switches>
+   *   <p>
+   *   or use -Dchromeoptions.prefs=<comma-separated dictionary of key=value>
+   *   <p>
    *
    * Value of "chrome.switches" parameter (in case of using Chrome driver).
-   * Can be configured either programmatically or by system property, 
+   * Can be configured either programmatically or by system property,
    * i.e. "-Dselenide.chrome.switches=--disable-popup-blocking".
    *
    * Default value: none
@@ -142,25 +154,32 @@ public class Configuration {
   public static String chromeSwitches = System.getProperty("selenide.chrome.switches", System.getProperty("chrome.switches"));
 
   /**
+   * Browser capabilities.
+   * Warning: this capabilities will override capabilities were set by system properties.
+   * <p/>
+   * Default value: null
+   */
+  public static DesiredCapabilities browserCapabilities;
+  /**
    * Should webdriver wait until page is completely loaded.
    * Possible values: "none", "normal" and "eager".
    *
    * Can be configured either programmatically or by system property "-Dselenide.pageLoadStrategy=eager".
    * Default value: "normal".
-   * 
+   *
    *  - `normal`: return after the load event fires on the new page (it's default in Selenium webdriver);
    *  - `eager`: return after DOMContentLoaded fires;
    *  - `none`: return immediately
    *
    *  In some cases `eager` can bring performance boosts for the slow tests.
    *  Though, we left default value `normal` because we afraid to break users' existing tests.
-   * 
+   *
    * See https://w3c.github.io/webdriver/webdriver-spec.html#dfn-page-loading-strategy
    * @since 3.5
    */
   public static String pageLoadStrategy = System.getProperty("selenide.pageLoadStrategy",
           System.getProperty("selenide.page-load-strategy", "normal"));
-  
+
   /**
    * ATTENTION! Automatic WebDriver waiting after click isn't working in case of using this feature.
    * Use clicking via JavaScript instead common element clicking.
@@ -283,6 +302,18 @@ public class Configuration {
   public static boolean versatileSetValue = Boolean.parseBoolean(System.getProperty("selenide.versatileSetValue", "false"));
 
   /**
+   * If set to true, 'setValue' and 'val' methods of SelenideElement trigger changeEvent after main manipulations.
+   *
+   * Firing change event is not natural and could lead to unpredictable results. Browser fires this event automatically
+   * according to web driver actions. Recommended behaviour is to disable this option.
+   * Make its true by default for backward compatibility.
+   *
+   * Can be configured either programmatically or by system property "-Dselenide.setValueChangeEvent=true".
+   * Default value: true
+   */
+  public static boolean setValueChangeEvent = Boolean.parseBoolean(System.getProperty("selenide.setValueChangeEvent", "true"));
+
+  /**
    * Choose how Selenide should retrieve web elements: using default CSS or Sizzle (CSS3)
    */
   public static SelectorMode selectorMode = CSS;
@@ -324,12 +355,12 @@ public class Configuration {
    * @see AssertionMode
    */
   public static AssertionMode assertionMode = STRICT;
-  
+
   public enum FileDownloadMode {
     /**
      * Download files via direct http request.
-     * Works only for <a href></a> elements. 
-     * Sends GET request to "href" with all cookies from current browser session. 
+     * Works only for <a href></a> elements.
+     * Sends GET request to "href" with all cookies from current browser session.
      */
     HTTPGET,
 
@@ -365,4 +396,10 @@ public class Configuration {
    * Default: false
    */
   public static boolean headless = Boolean.parseBoolean(System.getProperty("selenide.headless", "false"));
+
+  /**
+   * Sets the path to browser executable.
+   * Works only for Chrome, Firefox and Opera.
+   */
+  public static String browserBinary = System.getProperty("selenide.browserBinary", "");
 }

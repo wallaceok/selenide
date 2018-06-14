@@ -1,20 +1,19 @@
 package com.codeborne.selenide.webdriver;
 
-import com.codeborne.selenide.Configuration;
+import static com.codeborne.selenide.webdriver.SeleniumCapabilitiesHelper.getBrowserLaunchArgs;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+
+import com.codeborne.selenide.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.*;
+import org.openqa.selenium.firefox.*;
 
-import java.io.IOException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
+import java.util.*;
 
 public class FirefoxDriverFactoryTest {
 
@@ -23,9 +22,6 @@ public class FirefoxDriverFactoryTest {
 
   @Before
   public void setUp() {
-    Configuration.browser = null;
-    Configuration.browserSize = null;
-    Configuration.startMaximized = false;
     driverFactory = new FirefoxDriverFactory();
   }
 
@@ -33,6 +29,8 @@ public class FirefoxDriverFactoryTest {
   public void tearDown() {
     System.clearProperty("capabilities.some.cap");
     System.clearProperty("firefoxprofile.some.cap");
+    Configuration.browserBinary = "";
+    Configuration.headless = false;
   }
 
   @Test
@@ -76,17 +74,19 @@ public class FirefoxDriverFactoryTest {
   }
 
   @Test
-  public void transferChromeOptionArgumentsFromSystemPropsToDriver() throws IOException {
-    System.setProperty("chromeoptions.args", "abdd,--abcd,xcvcd=123");
-    String chromeOptions = new ChromeDriverFactory().createChromeOptions(proxy).toString();
-    Matcher matcher = Pattern.compile("args=\\[(.*)\\],").matcher(chromeOptions);
-    matcher.find();
-    String arrayOfArguments = matcher.group(1);
-
-    assertThat(arrayOfArguments, containsString("abdd"));
-    assertThat(arrayOfArguments, containsString("--abcd"));
-    assertThat(arrayOfArguments, containsString("xcvcd=123"));
+  public void browserBinaryCanBeSet() {
+    Configuration.browserBinary = "c:/browser.exe";
+    Capabilities caps = driverFactory.createFirefoxOptions(proxy);
+    Map options = (Map) caps.asMap().get(FirefoxOptions.FIREFOX_OPTIONS);
+    assertThat(options.get("binary"), is("c:/browser.exe"));
   }
 
+  @Test
+  public void headlessCanBeSet() {
+    Configuration.headless = true;
+    FirefoxOptions options = driverFactory.createFirefoxOptions(proxy);
+    List<String> optionArguments = getBrowserLaunchArgs(FirefoxOptions.FIREFOX_OPTIONS, options);
+    assertThat(optionArguments, hasItems("-headless"));
 
+  }
 }

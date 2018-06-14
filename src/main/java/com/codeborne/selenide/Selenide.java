@@ -2,8 +2,17 @@ package com.codeborne.selenide;
 
 import com.codeborne.selenide.ex.DialogTextMismatch;
 import com.codeborne.selenide.ex.JavaScriptErrorsFound;
-import com.codeborne.selenide.impl.*;
-import org.openqa.selenium.*;
+import com.codeborne.selenide.impl.BySelectorCollection;
+import com.codeborne.selenide.impl.ElementFinder;
+import com.codeborne.selenide.impl.Navigator;
+import com.codeborne.selenide.impl.SelenideFieldDecorator;
+import com.codeborne.selenide.impl.WebElementsCollectionWrapper;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.support.PageFactory;
@@ -18,8 +27,14 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.codeborne.selenide.Configuration.*;
-import static com.codeborne.selenide.WebDriverRunner.*;
+import static com.codeborne.selenide.Configuration.captureJavascriptErrors;
+import static com.codeborne.selenide.Configuration.dismissModalDialogs;
+import static com.codeborne.selenide.Configuration.timeout;
+import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
+import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
+import static com.codeborne.selenide.WebDriverRunner.hasWebDriverStarted;
+import static com.codeborne.selenide.WebDriverRunner.supportsJavascript;
+import static com.codeborne.selenide.WebDriverRunner.supportsModalDialogs;
 import static com.codeborne.selenide.impl.WebElementWrapper.wrap;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -142,7 +157,7 @@ public class Selenide {
    * Open a web page using Basic Auth credentials and create PageObject for it.
    * @return PageObject of given class
    */
-  public static <PageObjectClass> PageObjectClass open(String relativeOrAbsoluteUrl, 
+  public static <PageObjectClass> PageObjectClass open(String relativeOrAbsoluteUrl,
                                                        String domain, String login, String password,
                                                        Class<PageObjectClass> pageObjectClassClass) {
     open(relativeOrAbsoluteUrl, domain, login, password);
@@ -170,7 +185,7 @@ public class Selenide {
    * Reload current page
    */
   public static void refresh() {
-    navigator.open(url());
+    navigator.refresh();
   }
 
   /**
@@ -512,7 +527,6 @@ public class Selenide {
 
   /**
    * Accept (Click "Yes" or "Ok") in the confirmation dialog (javascript 'alert' or 'confirm').
-   * Method does nothing in case of HtmlUnit browser (since HtmlUnit does not support alerts).
    *
    * @param expectedDialogText if not null, check that confirmation dialog displays this message (case-sensitive)
    * @throws DialogTextMismatch if confirmation message differs from expected message
@@ -548,7 +562,6 @@ public class Selenide {
 
   /**
    * Accept (Click "Yes" or "Ok") in the confirmation dialog (javascript 'prompt').
-   * Method does nothing in case of HtmlUnit browser (since HtmlUnit does not support alerts).
    *
    * @param expectedDialogText if not null, check that confirmation dialog displays this message (case-sensitive)
    * @param inputText if not null, sets value in prompt dialog input
@@ -579,7 +592,6 @@ public class Selenide {
 
   /**
    * Dismiss (click "No" or "Cancel") in the confirmation dialog (javascript 'alert' or 'confirm').
-   * Method does nothing in case of HtmlUnit browser (since HtmlUnit does not support alerts).
    *
    * @param expectedDialogText if not null, check that confirmation dialog displays this message (case-sensitive)
    * @throws DialogTextMismatch if confirmation message differs from expected message
@@ -606,10 +618,10 @@ public class Selenide {
   /**
    * Switch to window/tab/frame/parentFrame/innerFrame/alert.
    * Allows switching to window by title, index, name etc.
-   * 
+   *
    * Similar to org.openqa.selenium.WebDriver#switchTo(), but all methods wait until frame/window/alert
    * appears if it's not visible yet (like other Selenide methods).
-   * 
+   *
    * @return SelenideTargetLocator
    */
   public static SelenideTargetLocator switchTo() {
@@ -649,12 +661,12 @@ public class Selenide {
 
   /**
    * Create a org.openqa.selenium.support.ui.FluentWait instance with Selenide timeout/polling.
-   * 
-   * Sample usage: 
+   *
+   * Sample usage:
    * {@code
    *   Wait().until(invisibilityOfElementLocated(By.id("magic-id")));
    * }
-   * 
+   *
    * @return instance of org.openqa.selenium.support.ui.FluentWait
    */
   public static FluentWait<WebDriver> Wait() {
@@ -718,7 +730,7 @@ public class Selenide {
     } catch (WebDriverException | UnsupportedOperationException cannotExecuteJs) {
       log.warning(cannotExecuteJs.toString());
       return emptyList();
-    } 
+    }
   }
 
   private static List<String> errorsFromList(List<Object> errors) {
@@ -825,6 +837,15 @@ public class Selenide {
     executeJavaScript("localStorage.clear();");
   }
 
+  /**
+   * Get current user agent from browser session
+   *
+   * @return browser user agent
+   */
+  public static String getUserAgent() {
+    return executeJavaScript("return navigator.userAgent;");
+  }
+
   private static List<LogEntry> getLogEntries(String logType, Level logLevel) {
     try {
       return getWebDriver().manage().logs().get(logType).filter(logLevel);
@@ -832,6 +853,15 @@ public class Selenide {
     catch (UnsupportedOperationException ignore) {
       return emptyList();
     }
+  }
+
+  /**
+   * Return true if bottom of the page is reached
+   *
+   * Useful if you need to scroll down by x pixels unknown number of times.
+   */
+  public static boolean atBottom() {
+    return Selenide.executeJavaScript("return window.pageYOffset + window.innerHeight >= document.body.scrollHeight");
   }
 
   private static <T> List<String> listToString(List<T> objects) {

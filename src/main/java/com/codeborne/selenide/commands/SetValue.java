@@ -8,12 +8,23 @@ import com.codeborne.selenide.impl.WebElementSource;
 import org.openqa.selenium.WebElement;
 
 import static com.codeborne.selenide.Configuration.fastSetValue;
+import static com.codeborne.selenide.Configuration.setValueChangeEvent;
 import static com.codeborne.selenide.Selenide.executeJavaScript;
 import static com.codeborne.selenide.impl.Events.events;
 
 public class SetValue implements Command<WebElement> {
-  SelectOptionByValue selectOptionByValue = new SelectOptionByValue();
-  SelectRadio selectRadio = new SelectRadio();
+  private SelectOptionByValue selectOptionByValue;
+  private SelectRadio selectRadio;
+
+  public SetValue() {
+    this.selectOptionByValue = new SelectOptionByValue();
+    this.selectRadio = new SelectRadio();
+  }
+
+  public SetValue(SelectOptionByValue selectOptionByValue, SelectRadio selectRadio) {
+    this.selectOptionByValue = selectOptionByValue;
+    this.selectRadio = selectRadio;
+  }
 
   @Override
   public WebElement execute(SelenideElement proxy, WebElementSource locator, Object[] args) {
@@ -41,11 +52,18 @@ public class SetValue implements Command<WebElement> {
     } else if (fastSetValue) {
       String error = setValueByJs(element, text);
       if (error != null) throw new InvalidStateException(error);
-      events.fireEvent(element, "focus", "keydown", "keypress", "input", "keyup", "change");
+      if (setValueChangeEvent) {
+        events.fireEvent(element, "keydown", "keypress", "input", "keyup", "change");
+      }
+      else {
+        events.fireEvent(element, "keydown", "keypress", "input", "keyup");
+      }
     } else {
       element.clear();
       element.sendKeys(text);
-      events.fireChangeEvent(element);
+      if (setValueChangeEvent) {
+        events.fireChangeEvent(element);
+      }
     }
   }
 
@@ -53,6 +71,8 @@ public class SetValue implements Command<WebElement> {
     return executeJavaScript(
         "return (function(webelement, text) {" +
             "if (webelement.getAttribute('readonly') != undefined) return 'Cannot change value of readonly element';" +
+            "if (webelement.getAttribute('disabled') != undefined) return 'Cannot change value of disabled element';" +
+            "webelement.focus();" +
             "var maxlength = webelement.getAttribute('maxlength') == null ? -1 : parseInt(webelement.getAttribute('maxlength'));" +
             "webelement.value = " +
             "maxlength == -1 ? text " +

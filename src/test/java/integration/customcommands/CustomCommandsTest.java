@@ -23,7 +23,7 @@ public class CustomCommandsTest extends IntegrationTest {
   public void userCanAddAnyCustomCommandsToSelenide() {
     $_("#valid-image").tripleClick().tripleClick().tripleClick().click();
     $_("#invalid-image").tripleClick().quadrupleClick();
-    
+
     assertTrue("Can also use standard Selenium methods", $_("#valid-image img").isDisplayed());
     $_("#valid-image img").shouldBe(visible);
     

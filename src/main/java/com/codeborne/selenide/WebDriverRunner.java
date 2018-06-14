@@ -2,12 +2,14 @@ package com.codeborne.selenide;
 
 import com.codeborne.selenide.impl.WebDriverContainer;
 import com.codeborne.selenide.impl.WebDriverThreadLocalContainer;
+import com.codeborne.selenide.proxy.SelenideProxyServer;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.events.WebDriverEventListener;
 
 import static com.codeborne.selenide.Configuration.browser;
+import static com.codeborne.selenide.Configuration.headless;
 
 public class WebDriverRunner {
   public static WebDriverContainer webdriverContainer = new WebDriverThreadLocalContainer();
@@ -22,14 +24,7 @@ public class WebDriverRunner {
   public static final String INTERNET_EXPLORER = "internet explorer";
   public static final String EDGE = "edge";
   public static final String FIREFOX = "firefox";
-  /**
-   * Marinonette Driver for Firefox is the same as Gecko Driver
-   */
-  public static final String MARIONETTE = "marionette";
-  /**
-   * Marinonette Driver for Firefox is the same as Gecko Driver
-   */
-  public static final String GECKO = "gecko";
+  public static final String LEGACY_FIREFOX = "legacy_firefox";
 
   /**
    * To use Safari webdriver, you need to include extra dependency to your project:
@@ -65,11 +60,11 @@ public class WebDriverRunner {
    * &lt;dependency org="com.opera" name="operadriver" rev="1.5" conf="test-&gt;default"/&gt;
    */
   public static final String OPERA = "opera";
-  
+
   /**
    * To use JbrowserDriver, you need to include extra dependency to your project:
    * <dependency org="com.machinepublishers" name="jbrowserdriver" rev="[0.13.0, 2.0)" conf="test-&gt;default"/&gt;
-   * 
+   *
    * Note: You need minimum of Java 8.
    */
   public static final String JBROWSER = "jbrowser";
@@ -143,6 +138,14 @@ public class WebDriverRunner {
   }
 
   /**
+   * Get selenide proxy. Currently it's activated only if Configuration.fileDownload == PROXY
+   * @return null if proxy server is not started
+   */
+  public static SelenideProxyServer getSelenideProxy() {
+    return webdriverContainer.getProxyServer();
+  }
+
+  /**
    * Close the browser if it's open
    */
   public static void closeWebDriver() {
@@ -164,10 +167,10 @@ public class WebDriverRunner {
   }
 
   /**
-   * Is Selenide configured to use Marionette (Gecko) driver
+   * Is Selenide configured to use legacy Firefox driver
    */
-  public static boolean isMarionette() {
-    return MARIONETTE.equalsIgnoreCase(browser) || GECKO.equalsIgnoreCase(browser);
+  public static boolean isLegacyFirefox() {
+    return LEGACY_FIREFOX.equalsIgnoreCase(browser);
   }
 
   /**
@@ -202,14 +205,14 @@ public class WebDriverRunner {
    * Is Selenide configured to use headless browser (HtmlUnit or PhantomJS)
    */
   public static boolean isHeadless() {
-    return isHtmlUnit() || isPhantomjs();
+    return isHtmlUnit() || isPhantomjs() || headless;
   }
 
   /**
    * Does this browser support "alert" and "confirm" dialogs.
    */
   public static boolean supportsModalDialogs() {
-    return !isHeadless() && !isSafari();
+    return !isPhantomjs() && !isSafari();
   }
 
   /**
@@ -239,7 +242,7 @@ public class WebDriverRunner {
   public static boolean isOpera() {
     return OPERA.equalsIgnoreCase(browser);
   }
-  
+
   /**
    * Is Selenide configured to use JBrowser browser
    */

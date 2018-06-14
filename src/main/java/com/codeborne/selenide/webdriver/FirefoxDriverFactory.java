@@ -9,6 +9,7 @@ import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.util.logging.Logger;
 
+import static com.codeborne.selenide.Configuration.browserBinary;
 import static com.codeborne.selenide.Configuration.headless;
 
 class FirefoxDriverFactory extends AbstractDriverFactory {
@@ -22,19 +23,23 @@ class FirefoxDriverFactory extends AbstractDriverFactory {
 
   @Override
   WebDriver create(final Proxy proxy) {
+    String logFilePath = System.getProperty(FirefoxDriver.SystemProperty.BROWSER_LOGFILE, "/dev/null");
+    System.setProperty(FirefoxDriver.SystemProperty.BROWSER_LOGFILE, logFilePath);
     return createFirefoxDriver(proxy);
   }
 
   private WebDriver createFirefoxDriver(final Proxy proxy) {
     FirefoxOptions options = createFirefoxOptions(proxy);
-    log.info("Firefox 48+ is currently not supported by Selenium Firefox driver. " +
-            "Use browser=marionette with geckodriver, when using it.");
     return new FirefoxDriver(options);
   }
 
   FirefoxOptions createFirefoxOptions(Proxy proxy) {
     FirefoxOptions firefoxOptions = new FirefoxOptions();
     firefoxOptions.setHeadless(headless);
+    if (!browserBinary.isEmpty()) {
+      log.info("Using browser binary: " + browserBinary);
+      firefoxOptions.setBinary(browserBinary);
+    }
     firefoxOptions.addPreference("network.automatic-ntlm-auth.trusted-uris", "http://,https://");
     firefoxOptions.addPreference("network.automatic-ntlm-auth.allow-non-fqdn", true);
     firefoxOptions.addPreference("network.negotiate-auth.delegation-uris", "http://,https://");
@@ -42,7 +47,6 @@ class FirefoxDriverFactory extends AbstractDriverFactory {
     firefoxOptions.addPreference("network.http.phishy-userpass-length", 255);
     firefoxOptions.addPreference("security.csp.enable", false);
 
-    firefoxOptions.setCapability("marionette", false);
     firefoxOptions.merge(createCommonCapabilities(proxy));
     firefoxOptions = transferFirefoxProfileFromSystemProperties(firefoxOptions);
 
